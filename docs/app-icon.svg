@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NVR Server</title>
+  <desc id="desc">Camera lens icon for the NVR Server app.</desc>
+  <rect width="512" height="512" rx="96" fill="#00695c"/>
+  <rect x="88" y="132" width="336" height="248" rx="48" fill="#ffffff" opacity="0.96"/>
+  <path d="M386 196l58-36c18-11 40 2 40 23v146c0 21-22 34-40 23l-58-36V196z" fill="#80cbc4"/>
+  <circle cx="246" cy="256" r="82" fill="#004d40"/>
+  <circle cx="246" cy="256" r="48" fill="#26a69a"/>
+  <circle cx="222" cy="232" r="16" fill="#e0f2f1"/>
+  <path d="M112 392h288" stroke="#80cbc4" stroke-width="28" stroke-linecap="round"/>
+</svg>

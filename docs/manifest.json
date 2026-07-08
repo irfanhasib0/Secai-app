@@ -1,0 +1,33 @@
+{
+  "short_name": "NVR",
+  "name": "NVR Server",
+  "description": "Network video recorder dashboard for cameras, events, recordings, zones, and system health.",
+  "id": "/",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e0f2f1",
+  "theme_color": "#00695c",
+  "categories": ["utilities", "productivity", "security"],
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
