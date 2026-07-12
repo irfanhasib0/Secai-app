@@ -2,7 +2,7 @@
   "short_name": "NVR",
   "name": "NVR Server",
   "description": "Network video recorder dashboard for cameras, events, recordings, zones, and system health.",
-  "id": ".",
+  "id": "/",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
