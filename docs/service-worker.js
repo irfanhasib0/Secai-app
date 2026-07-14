@@ -1,12 +1,13 @@
-const CACHE_VERSION = 'nvr-pwa-v2';
+const CACHE_VERSION = 'nvr-pwa-v3';
 const INDEX_URL = './index.html';
 const APP_SHELL = [
   './',
   INDEX_URL,
   './manifest.json',
-  './app-icon.svg',
   './icon-192.png',
   './icon-512.png',
+  './screenshot-wide.png',
+  './screenshot-mobile.png',
 ];
 
 const ASSET_MANIFEST_URL = './asset-manifest.json';
