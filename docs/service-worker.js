@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'nvr-pwa-v3';
+const CACHE_VERSION = 'nvr-pwa-v4';
 const INDEX_URL = './index.html';
 const APP_SHELL = [
   './',
