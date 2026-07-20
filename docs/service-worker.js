@@ -1,4 +1,15 @@
-const CACHE_VERSION = 'nvr-pwa-v4';
+const CACHE_VERSION = 'nvr-pwa-v5';
+const RECORDING_CACHE_LIMIT = 25;
+const RECORDING_CACHE_NAMES = {
+  thumbnails: 'nvr-recording-thumbnails-v1',
+  videos: 'nvr-recording-videos-v1',
+  motion: 'nvr-recording-motion-v1',
+  personImages: 'nvr-person-images-v1',
+};
+const ACTIVE_CACHE_NAMES = new Set([
+  CACHE_VERSION,
+  ...Object.values(RECORDING_CACHE_NAMES),
+]);
 const INDEX_URL = './index.html';
 const APP_SHELL = [
   './',
@@ -18,6 +29,89 @@ const isApiRequest = (url) => (
 );
 
 const isStaticAsset = (url) => url.pathname.includes('/static/');
+
+const recordingRequestType = (url) => {
+  if (/\/api\/persons\/[^/]+\/[^/]+\/image\/?$/.test(url.pathname)) return 'personImages';
+  if (/\/api\/recordings\/[^/]+\/thumbnail\/?$/.test(url.pathname)) return 'thumbnails';
+  if (/\/api\/recordings\/[^/]+\/play\/?$/.test(url.pathname)) return 'videos';
+  if (/\/api\/recordings\/[^/]+\/motion-data\/?$/.test(url.pathname)) return 'motion';
+  return null;
+};
+
+const isCacheableResponse = (response) => (
+  response && (response.ok || response.type === 'opaque') && response.status !== 206
+);
+
+// Cache Storage preserves insertion order. Reinsert hits and trim the oldest
+// keys to provide a small LRU cache without adding another persistence layer.
+const storeBoundedResponse = async (cacheName, request, response) => {
+  if (!isCacheableResponse(response)) return;
+  const cache = await caches.open(cacheName);
+  await cache.delete(request);
+  const existingKeys = await cache.keys();
+  const requiredEvictions = Math.max(0, existingKeys.length - RECORDING_CACHE_LIMIT + 1);
+  if (requiredEvictions > 0) {
+    await Promise.all(existingKeys
+      .slice(0, requiredEvictions)
+      .map((key) => cache.delete(key)));
+  }
+  await cache.put(request, response);
+  const keys = await cache.keys();
+  const excess = keys.length - RECORDING_CACHE_LIMIT;
+  if (excess > 0) {
+    await Promise.all(keys.slice(0, excess).map((key) => cache.delete(key)));
+  }
+};
+
+const serveBoundedRecordingCache = async (event, request, cacheName, stripRange = false) => {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request, { ignoreVary: true });
+  if (cached) {
+    try {
+      await storeBoundedResponse(cacheName, request, cached.clone());
+    } catch (_error) {
+      // A cache maintenance failure must not prevent playback of a cache hit.
+    }
+    return cached;
+  }
+
+  let networkRequest = request;
+  if (stripRange && request.headers.has('range')) {
+    const headers = new Headers(request.headers);
+    headers.delete('range');
+    networkRequest = new Request(request, { headers });
+  }
+
+  const response = await fetch(networkRequest);
+  if (isCacheableResponse(response)) {
+    event.waitUntil(
+      storeBoundedResponse(cacheName, request, response.clone()).catch(() => undefined)
+    );
+  }
+  return response;
+};
+
+const clearRecordingCaches = () => Promise.all(
+  Object.values(RECORDING_CACHE_NAMES).map((cacheName) => caches.delete(cacheName))
+);
+
+const removeRecordingFromCaches = async (recordingId) => {
+  const encodedId = encodeURIComponent(recordingId);
+  const pathMarkers = [
+    `/api/recordings/${encodedId}/`,
+    `/api/persons/${encodedId}/`,
+  ];
+  await Promise.all(Object.values(RECORDING_CACHE_NAMES).map(async (cacheName) => {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    await Promise.all(keys
+      .filter((request) => {
+        const pathname = new URL(request.url).pathname;
+        return pathMarkers.some((pathMarker) => pathname.includes(pathMarker));
+      })
+      .map((request) => cache.delete(request)));
+  }));
+};
 
 const normalizeCachePath = (value) => {
   const raw = String(value || '').trim();
@@ -108,21 +202,53 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((keys) => Promise.all(
         keys
-          .filter((key) => key !== CACHE_VERSION)
+          .filter((key) => !ACTIVE_CACHE_NAMES.has(key))
           .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'NVR_CLEAR_RECORDING_CACHES') {
+    event.waitUntil(clearRecordingCaches());
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+
+  const requestUrl = new URL(request.url);
+
+  if (request.method === 'DELETE') {
+    const deleteMatch = requestUrl.pathname.match(/\/api\/recordings\/([^/]+)\/?$/);
+    if (deleteMatch) {
+      event.respondWith(fetch(request).then((response) => {
+        if (response.ok) {
+          event.waitUntil(removeRecordingFromCaches(decodeURIComponent(deleteMatch[1])));
+        }
+        return response;
+      }));
+    }
+    return;
+  }
 
   if (request.method !== 'GET') {
     return;
   }
 
-  const url = new URL(request.url);
+  const recordingType = recordingRequestType(requestUrl);
+  if (recordingType) {
+    event.respondWith(serveBoundedRecordingCache(
+      event,
+      request,
+      RECORDING_CACHE_NAMES[recordingType],
+      recordingType === 'videos',
+    ));
+    return;
+  }
+
+  const url = requestUrl;
   if (url.origin !== self.location.origin || isApiRequest(url)) {
     return;
   }
