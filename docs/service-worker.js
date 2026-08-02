@@ -2,6 +2,7 @@ const CACHE_VERSION = 'nvr-pwa-v5';
 const RECORDING_CACHE_LIMIT = 25;
 const RECORDING_CACHE_NAMES = {
   thumbnails: 'nvr-recording-thumbnails-v1',
+  changes: 'nvr-recording-changes-v1',
   videos: 'nvr-recording-videos-v1',
   motion: 'nvr-recording-motion-v1',
   personImages: 'nvr-person-images-v1',
@@ -33,6 +34,7 @@ const isStaticAsset = (url) => url.pathname.includes('/static/');
 const recordingRequestType = (url) => {
   if (/\/api\/persons\/[^/]+\/[^/]+\/image\/?$/.test(url.pathname)) return 'personImages';
   if (/\/api\/recordings\/[^/]+\/thumbnail\/?$/.test(url.pathname)) return 'thumbnails';
+  if (/\/api\/recordings\/[^/]+\/change\/(?:before|after|diff)\.jpg\/?$/.test(url.pathname)) return 'changes';
   if (/\/api\/recordings\/[^/]+\/play\/?$/.test(url.pathname)) return 'videos';
   if (/\/api\/recordings\/[^/]+\/motion-data\/?$/.test(url.pathname)) return 'motion';
   return null;
